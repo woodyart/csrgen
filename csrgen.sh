@@ -1,12 +1,21 @@
 #!/bin/bash
 # The script will generate new CSR from previously generated CSR or CRT/PEM file
 
-# args:
-# -s --source - source CSR or CRT/PEM file
-# -c --csr    - new CSR file location
-# -k --key    - new KEY file location
-# -y --overwrite - overwrite existings files
-# -h --help   - this help
+function help {
+  echo -n "The script will generate new CSR from previously generated CSR or CRT/PEM file
+  SCRIPT ARGS:
+  $0 -s <source_file> -k <new_key_file> -c <new_csr_file> -y
+
+  -s - path to CSR or CRT/PEM file you want to update (Required)
+  -k - path to export new KEY file (Required)
+  -c - path to export new CSR file (Required)
+  -y - overwrite new KEY and CSR file if exists
+  -h - this help
+
+  EXAMPLE:
+  $0 -s example.com.crt -k example.com_1.key -c example.com_1.csr"
+  echo -e '\n'
+}
 
 function parse_csr {
   local CSR="$1"
@@ -46,7 +55,7 @@ function check_src {
 
   #Check 2
   TYPE=$(file -b "$FILE")
-  if [[ $("$TYPE" | grep -q "PEM certificate") ]]; then {
+  if [[ $(echo "$TYPE" | grep -q "PEM certificate") ]]; then {
     echo "Error parse file: $FILE. File type incorrect: $TYPE"
     exit 1
   }
@@ -73,8 +82,6 @@ function check_dest {
     done
   }
   fi
-  #if file exist ask y/n to rewrite
-  echo "dummy $FILE rewrite $REWRITE"
 }
 
 function generate_csr {
@@ -91,17 +98,41 @@ function generate_csr {
 
 function main {
   local OLD_CRT="$1" NEW_KEY="$2" NEW_CSR="$3" REWRITE="$4"
+
   check_src  "$OLD_CRT"
-  check_dest "$NEW_CSR"
-  check_dest "$NEW_KEY"
+  if [[ -z $REWRITE ]]; then {
+    check_dest "$NEW_CSR"
+    check_dest "$NEW_KEY"
+  }
+  fi
+
   SUBJ=$(get_subject "$OLD_CRT" )
   generate_csr "$SUBJ" "$NEW_KEY" "$NEW_CSR"
 }
 
 ################################################################################
-OLD_CRT="$1"
-NEW_KEY="$2"
-NEW_CSR="$3"
-REWRITE="$4"
+while getopts ":s:k:c:yh" arg; do
+  case "${arg}" in
+    s) OLD_CRT=${OPTARG};;
+    k) NEW_KEY=${OPTARG};;
+    c) NEW_CSR=${OPTARG};;
+    y) REWRITE="true";;
+    h)
+      help
+      exit 0
+      ;;
+    *)
+      echo -e "ERROR: Unknown argument: ${OPTARG}. Read the HELP first\n"
+      help
+      exit 1
+      ;;
+  esac
+done
 
-main "$OLD_CRT" "$NEW_KEY" "$NEW_CSR" "$REWRITE"
+if [[ -z $OLD_CRT || -z $NEW_KEY || -z $NEW_CSR ]]; then
+  echo -e "ERROR: One or more required parameters undefined\n"
+  help
+  exit 1
+else
+  main "$OLD_CRT" "$NEW_KEY" "$NEW_CSR" "$REWRITE"
+fi
