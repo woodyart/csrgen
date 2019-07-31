@@ -23,8 +23,8 @@ function parse_csr {
 }
 
 function parse_crt {
-  local cert="$1"
-  openssl x509 -noout -subject -in $CERT | sed -e 's/^subject=\ *\///g'
+  local CERT="$1"
+  openssl x509 -noout -subject -in $CERT | sed -e 's/^subject=\ *//g'
 }
 
 function get_subject {
